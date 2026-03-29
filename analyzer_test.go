@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/emm5317/tagaudit"
-	_ "github.com/emm5317/tagaudit/rules" // register built-in rules
+	"github.com/emm5317/tagaudit/rules"
 )
 
 func TestAnalyzePackages_BasicSyntax(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	findings, err := a.AnalyzePackages("./testdata/basic")
 	if err != nil {
@@ -36,6 +36,7 @@ func TestAnalyzePackages_BasicSyntax(t *testing.T) {
 
 func TestAnalyzePackages_Naming(t *testing.T) {
 	a := tagaudit.New(&tagaudit.Config{
+		Rules:             rules.All(),
 		NamingConventions: map[string]string{"json": "snake_case"},
 	})
 
@@ -65,7 +66,7 @@ func TestAnalyzePackages_Naming(t *testing.T) {
 }
 
 func TestAnalyzePackages_Unexported(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	findings, err := a.AnalyzePackages("./testdata/basic")
 	if err != nil {
@@ -91,6 +92,7 @@ func TestAnalyzePackages_Unexported(t *testing.T) {
 
 func TestAnalyzePackages_UnknownKeys(t *testing.T) {
 	a := tagaudit.New(&tagaudit.Config{
+		Rules:        rules.All(),
 		KnownTagKeys: []string{"json"},
 	})
 
@@ -118,6 +120,7 @@ func TestAnalyzePackages_UnknownKeys(t *testing.T) {
 
 func TestAnalyzePackages_Completeness(t *testing.T) {
 	a := tagaudit.New(&tagaudit.Config{
+		Rules:           rules.All(),
 		RequiredTagKeys: []string{"json"},
 	})
 
@@ -144,7 +147,7 @@ func TestAnalyzePackages_Completeness(t *testing.T) {
 }
 
 func TestAnalyzePackages_Duplicates(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	findings, err := a.AnalyzePackages("./testdata/embedded")
 	if err != nil {
@@ -169,7 +172,7 @@ func TestAnalyzePackages_Duplicates(t *testing.T) {
 }
 
 func TestAnalyzePackages_Shadow(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	findings, err := a.AnalyzePackages("./testdata/embedded")
 	if err != nil {
@@ -194,7 +197,7 @@ func TestAnalyzePackages_Shadow(t *testing.T) {
 }
 
 func TestAnalyzePackages_NoDuplicatesOnClean(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	findings, err := a.AnalyzePackages("./testdata/embedded")
 	if err != nil {
@@ -210,7 +213,7 @@ func TestAnalyzePackages_NoDuplicatesOnClean(t *testing.T) {
 }
 
 func TestAnalyzePackages_InvalidPattern(t *testing.T) {
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	_, err := a.AnalyzePackages("./nonexistent_package_xyz_123")
 	if err == nil {
@@ -221,7 +224,7 @@ func TestAnalyzePackages_InvalidPattern(t *testing.T) {
 func TestAnalyzePackages_NonStructTypes(t *testing.T) {
 	// testdata/basic now contains MyString, MyInterface, MyAlias — these
 	// should be silently skipped without errors
-	a := tagaudit.New(&tagaudit.Config{})
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
 	_, err := a.AnalyzePackages("./testdata/basic")
 	if err != nil {
@@ -266,20 +269,29 @@ func TestNew_NilConfig(t *testing.T) {
 	}
 }
 
-func TestNew_DefaultRulesFallback(t *testing.T) {
-	// Empty rules list falls back to default rules
-	a := tagaudit.New(&tagaudit.Config{
-		Rules: []any{},
-	})
+func TestNew_EmptyRulesNoFindings(t *testing.T) {
+	// Empty rules list means no rules run — no findings.
+	a := tagaudit.New(&tagaudit.Config{})
 	if a == nil {
 		t.Fatal("New returned nil")
 	}
-	// Should use default rules and find issues
 	findings, err := a.AnalyzePackages("./testdata/basic")
 	if err != nil {
 		t.Fatalf("AnalyzePackages failed: %v", err)
 	}
-	// Default rules should find at least the syntax error
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings with no rules, got %d", len(findings))
+	}
+}
+
+func TestRulesDefaultConfig(t *testing.T) {
+	// rules.DefaultConfig provides a fully populated config with all rules.
+	cfg := rules.DefaultConfig()
+	a := tagaudit.New(cfg)
+	findings, err := a.AnalyzePackages("./testdata/basic")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
 	hasSyntax := false
 	for _, f := range findings {
 		if f.RuleID == "syntax" {
@@ -287,7 +299,7 @@ func TestNew_DefaultRulesFallback(t *testing.T) {
 		}
 	}
 	if !hasSyntax {
-		t.Error("expected default rules to catch syntax errors")
+		t.Error("expected rules.DefaultConfig to catch syntax errors")
 	}
 }
 

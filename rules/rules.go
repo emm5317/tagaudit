@@ -2,15 +2,9 @@ package rules
 
 import "github.com/emm5317/tagaudit"
 
-func init() {
-	tagaudit.SetDefaultRules(func() []any {
-		return All()
-	})
-}
-
 // All returns all built-in rules.
-func All() []any {
-	return []any{
+func All() []tagaudit.Rule {
+	return []tagaudit.Rule{
 		&SyntaxRule{},
 		&NamingRule{},
 		&OptionsRule{},
@@ -19,5 +13,17 @@ func All() []any {
 		&CompletenessRule{},
 		&DuplicatesRule{},
 		&ShadowRule{},
+	}
+}
+
+// DefaultConfig returns a Config pre-populated with all built-in rules
+// and sensible defaults (snake_case for json, json as required tag key).
+func DefaultConfig() *tagaudit.Config {
+	return &tagaudit.Config{
+		Rules: All(),
+		NamingConventions: map[string]string{
+			"json": "snake_case",
+		},
+		RequiredTagKeys: []string{"json"},
 	}
 }

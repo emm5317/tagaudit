@@ -26,11 +26,12 @@ import (
 	"fmt"
 
 	"github.com/emm5317/tagaudit"
-	_ "github.com/emm5317/tagaudit/rules" // register built-in rules
+	"github.com/emm5317/tagaudit/rules"
 )
 
 func main() {
 	a := tagaudit.New(&tagaudit.Config{
+		Rules: rules.All(),
 		NamingConventions: map[string]string{
 			"json": "snake_case",
 			"yaml": "snake_case",
@@ -47,6 +48,12 @@ func main() {
 		fmt.Println(f)
 	}
 }
+```
+
+Or use `rules.DefaultConfig()` for sensible defaults (snake_case json naming, json as required tag):
+
+```go
+a := tagaudit.New(rules.DefaultConfig())
 ```
 
 ## Built-in Rules

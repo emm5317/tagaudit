@@ -3,8 +3,9 @@ package tagaudit
 // Config controls which rules run and how they behave.
 type Config struct {
 	// Rules to run. Each must implement FieldChecker and/or StructChecker.
-	// If nil, all built-in rules are used.
-	Rules []any
+	// If nil or empty, no rules are applied — use rules.All() or
+	// rules.DefaultConfig() to include the built-in rule set.
+	Rules []Rule
 
 	// NamingConventions maps a tag key to the expected naming convention.
 	// Recognized values: "snake_case", "camelCase", "PascalCase", "kebab-case".

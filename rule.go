@@ -8,18 +8,23 @@ import (
 	"github.com/fatih/structtag"
 )
 
-// FieldChecker is implemented by rules that check individual struct fields.
-type FieldChecker interface {
+// Rule is the base interface for all tag validation rules.
+// Every rule must implement Rule plus at least one of FieldChecker or StructChecker.
+type Rule interface {
 	ID() string
 	Description() string
+}
+
+// FieldChecker is implemented by rules that check individual struct fields.
+type FieldChecker interface {
+	Rule
 	CheckField(info FieldInfo, cfg *Config) []Finding
 }
 
 // StructChecker is implemented by rules that need cross-field analysis
 // (e.g., duplicate detection, completeness checks).
 type StructChecker interface {
-	ID() string
-	Description() string
+	Rule
 	CheckStruct(info StructInfo, cfg *Config) []Finding
 }
 

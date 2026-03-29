@@ -1,7 +1,9 @@
 package tagaudit
 
 import (
+	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -49,10 +51,12 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 					for _, fc := range a.fieldCheckers {
 						for _, finding := range fc.CheckField(field, a.cfg) {
 							pos := field.ASTField.Pos()
+							end := token.NoPos
 							if field.ASTField.Tag != nil {
 								pos = field.ASTField.Tag.Pos()
+								end = field.ASTField.Tag.End()
 							}
-							pass.Reportf(pos, "[%s] %s", finding.RuleID, finding.Message)
+							pass.Report(buildDiagnostic(pos, end, field.ASTField, finding))
 						}
 					}
 				}
@@ -67,19 +71,21 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 				}
 				for _, sc := range a.structCheckers {
 					for _, finding := range sc.CheckStruct(si, a.cfg) {
-						// Use the struct's position as fallback
 						pos := st.Pos()
-						// Try to find the specific field's AST position
+						end := token.NoPos
+						var astField *ast.Field
 						for _, f := range fields {
 							if f.Field != nil && f.Field.Name() == finding.FieldName {
+								astField = f.ASTField
 								pos = f.ASTField.Pos()
 								if f.ASTField.Tag != nil {
 									pos = f.ASTField.Tag.Pos()
+									end = f.ASTField.Tag.End()
 								}
 								break
 							}
 						}
-						pass.Reportf(pos, "[%s] %s", finding.RuleID, finding.Message)
+						pass.Report(buildDiagnostic(pos, end, astField, finding))
 					}
 				}
 			})
@@ -87,4 +93,28 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 			return nil, nil
 		},
 	}
+}
+
+// buildDiagnostic converts a Finding into an analysis.Diagnostic with
+// category, end position, and suggested fixes when available.
+func buildDiagnostic(pos, end token.Pos, astField *ast.Field, f Finding) analysis.Diagnostic {
+	d := analysis.Diagnostic{
+		Pos:      pos,
+		End:      end,
+		Category: f.Severity.String(),
+		Message:  fmt.Sprintf("[%s] %s", f.RuleID, f.Message),
+	}
+
+	if f.Fix != nil && astField != nil && astField.Tag != nil {
+		d.SuggestedFixes = []analysis.SuggestedFix{{
+			Message: f.Fix.Description,
+			TextEdits: []analysis.TextEdit{{
+				Pos:     astField.Tag.Pos(),
+				End:     astField.Tag.End(),
+				NewText: []byte("`" + f.Fix.NewTagValue + "`"),
+			}},
+		}}
+	}
+
+	return d
 }

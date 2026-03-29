@@ -339,13 +339,15 @@ func TestSyntaxRule_TagsNilButParseable(t *testing.T) {
 	}
 }
 
-// rules.go:6-8 — init function calls SetDefaultRules
-// This is covered by importing the package, but we can verify it works
-func TestInit_RegistersDefaults(t *testing.T) {
-	// The init() in rules.go calls SetDefaultRules.
-	// Verify that creating an analyzer without explicit rules uses built-in rules.
-	a := tagaudit.New(&tagaudit.Config{})
-	if a == nil {
-		t.Fatal("New returned nil")
+func TestDefaultConfig_HasRules(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg == nil {
+		t.Fatal("DefaultConfig returned nil")
+	}
+	if len(cfg.Rules) == 0 {
+		t.Error("DefaultConfig should include all built-in rules")
+	}
+	if cfg.NamingConventions["json"] != "snake_case" {
+		t.Errorf("expected json naming convention 'snake_case', got %q", cfg.NamingConventions["json"])
 	}
 }

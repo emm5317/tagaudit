@@ -14,7 +14,7 @@ func TestAll_ReturnsAllRules(t *testing.T) {
 		t.Fatal("All() returned empty slice")
 	}
 
-	// Verify each rule implements at least one interface
+	// Verify each rule implements at least one checker interface
 	for _, r := range all {
 		_, isField := r.(tagaudit.FieldChecker)
 		_, isStruct := r.(tagaudit.StructChecker)
@@ -26,23 +26,12 @@ func TestAll_ReturnsAllRules(t *testing.T) {
 
 func TestAllDescriptions(t *testing.T) {
 	// Every rule must have a non-empty ID and Description
-	all := All()
-	for _, r := range all {
-		if fc, ok := r.(tagaudit.FieldChecker); ok {
-			if fc.ID() == "" {
-				t.Errorf("%T has empty ID", r)
-			}
-			if fc.Description() == "" {
-				t.Errorf("%T has empty Description", r)
-			}
+	for _, r := range All() {
+		if r.ID() == "" {
+			t.Errorf("%T has empty ID", r)
 		}
-		if sc, ok := r.(tagaudit.StructChecker); ok {
-			if sc.ID() == "" {
-				t.Errorf("%T has empty ID", r)
-			}
-			if sc.Description() == "" {
-				t.Errorf("%T has empty Description", r)
-			}
+		if r.Description() == "" {
+			t.Errorf("%T has empty Description", r)
 		}
 	}
 }

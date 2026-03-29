@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/emm5317/tagaudit"
-	_ "github.com/emm5317/tagaudit/rules"
+	"github.com/emm5317/tagaudit/rules"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
 func TestNewAnalyzer(t *testing.T) {
 	cfg := &tagaudit.Config{
+		Rules:             rules.All(),
 		NamingConventions: map[string]string{"json": "snake_case"},
 		RequiredTagKeys:   []string{"json"},
 	}

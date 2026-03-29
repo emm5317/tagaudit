@@ -21,7 +21,8 @@ type Analyzer struct {
 
 // New creates an Analyzer with the given config.
 // If cfg is nil, DefaultConfig() is used.
-// If cfg.Rules is nil, all built-in rules are used.
+// If cfg.Rules is empty, no rules are applied; use rules.All() or
+// rules.DefaultConfig() to include the built-in rule set.
 func New(cfg *Config) *Analyzer {
 	if cfg == nil {
 		cfg = DefaultConfig()
@@ -29,12 +30,7 @@ func New(cfg *Config) *Analyzer {
 
 	a := &Analyzer{cfg: cfg}
 
-	rules := cfg.Rules
-	if len(rules) == 0 {
-		rules = defaultRules()
-	}
-
-	for _, r := range rules {
+	for _, r := range cfg.Rules {
 		if fc, ok := r.(FieldChecker); ok {
 			a.fieldCheckers = append(a.fieldCheckers, fc)
 		}
@@ -44,22 +40,6 @@ func New(cfg *Config) *Analyzer {
 	}
 
 	return a
-}
-
-// defaultRules returns the built-in rule set.
-// This is defined here to avoid an import cycle with the rules package.
-// Users should populate Config.Rules with rules.All() or their own set.
-// When Config.Rules is nil, this returns a minimal set (syntax only).
-var defaultRules = func() []any {
-	// Will be overridden by an init function or set by the caller.
-	// When rules package is imported, it can register itself.
-	return nil
-}
-
-// SetDefaultRules allows the rules package to register built-in rules
-// without creating an import cycle.
-func SetDefaultRules(fn func() []any) {
-	defaultRules = fn
 }
 
 // AnalyzePackages loads the named packages and runs all configured rules
