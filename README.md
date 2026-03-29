@@ -1,5 +1,7 @@
 # tagaudit
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A composable struct tag validation library for Go.
 
 `tagaudit` fills the gap between `fatih/structtag` (parsing only) and `go vet` (not usable as a library). It provides a pluggable rule system with built-in rules for common issues and supports user-defined custom rules.
@@ -95,3 +97,7 @@ a := tagaudit.New(&tagaudit.Config{
 	KnownTagKeys: []string{"json", "db", "yaml"},
 }
 ```
+
+## License
+
+[MIT](LICENSE)
