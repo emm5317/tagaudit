@@ -13,8 +13,17 @@ A composable struct tag validation library for Go.
 
 ## Install
 
+As a library:
+
 ```bash
 go get github.com/emm5317/tagaudit
+```
+
+As a standalone CLI tool:
+
+```bash
+go install github.com/emm5317/tagaudit/cmd/tagaudit@latest
+tagaudit ./...
 ```
 
 ## Usage
@@ -62,7 +71,7 @@ a := tagaudit.New(rules.DefaultConfig())
 |------|------|-----------------|
 | `syntax` | per-field | Malformed struct tag strings |
 | `naming` | per-field | Naming convention violations (e.g., camelCase in json tags when snake_case is expected). Provides auto-fix suggestions. |
-| `options` | per-field | Invalid options for well-known tags (e.g., `json:"foo,omitemtpy"`) |
+| `options` | per-field | Invalid options for well-known tags (e.g., `json:"foo,omitemtpy"`). Extensible via `KnownOptions`. |
 | `unexported` | per-field | Encoding tags on unexported fields (silently ignored at runtime) |
 | `unknownkeys` | per-field | Tag keys not in a configured known set (catches typos like `josn`) |
 | `completeness` | per-struct | Missing tags when other fields in the struct have them |
@@ -107,6 +116,15 @@ a := tagaudit.New(&tagaudit.Config{
 
 	// Only allow these tag keys (catches typos). nil = disabled.
 	KnownTagKeys: []string{"json", "db", "yaml"},
+
+	// Register valid options for tags beyond the built-in json/xml/yaml defaults.
+	KnownOptions: map[string][]string{
+		"gorm": {"primaryKey", "autoIncrement", "not null"},
+	},
+
+	// Filter output by severity. nil = all findings.
+	// SeverityError (0) = errors only, SeverityWarning (1) = errors+warnings, SeverityInfo (2) = all.
+	MinSeverity: tagaudit.SeverityPtr(tagaudit.SeverityWarning),
 }
 ```
 

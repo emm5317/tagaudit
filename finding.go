@@ -27,6 +27,10 @@ func (s Severity) String() string {
 	}
 }
 
+// SeverityPtr returns a pointer to the given Severity value,
+// useful for setting Config.MinSeverity from a constant.
+func SeverityPtr(s Severity) *Severity { return &s }
+
 // Finding is a single diagnostic produced by a rule.
 type Finding struct {
 	Pos       token.Position // file, line, column
