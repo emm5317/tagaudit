@@ -1,6 +1,9 @@
 # tagaudit
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Go Reference](https://pkg.go.dev/badge/github.com/emm5317/tagaudit.svg)](https://pkg.go.dev/github.com/emm5317/tagaudit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/emm5317/tagaudit)](https://goreportcard.com/report/github.com/emm5317/tagaudit)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/emm5317/tagaudit/pulls)
 
 A composable struct tag validation library for Go.
 
