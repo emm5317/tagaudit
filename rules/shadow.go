@@ -43,6 +43,9 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 			if tag.Name == "" || tag.Name == "-" {
 				continue
 			}
+			if !identifierTagKeys[tag.Key] {
+				continue
+			}
 			if embFieldName, ok := embeddedTags[tag.Key][tag.Name]; ok {
 				pos := posFromInfo(f)
 				findings = append(findings, tagaudit.Finding{
@@ -93,6 +96,9 @@ func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string) {
 
 		for _, tag := range tags.Tags() {
 			if tag.Name == "" || tag.Name == "-" {
+				continue
+			}
+			if !identifierTagKeys[tag.Key] {
 				continue
 			}
 			if out[tag.Key] == nil {

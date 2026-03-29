@@ -9,11 +9,27 @@ import (
 )
 
 // DuplicatesRule detects duplicate tag values within a struct, including
-// values from embedded struct fields.
+// values from embedded struct fields. Only checks tags where the value
+// acts as a field name/identifier (encoding tags like json, xml, db, etc.),
+// not constraint tags where sharing values is expected (e.g., validate, river).
 type DuplicatesRule struct{}
 
 func (r *DuplicatesRule) ID() string          { return "duplicates" }
 func (r *DuplicatesRule) Description() string { return "detects duplicate tag values" }
+
+// identifierTagKeys are tag keys where the value represents a unique
+// field name. Duplicate values in these tags indicate a real conflict.
+var identifierTagKeys = map[string]bool{
+	"json":    true,
+	"xml":     true,
+	"yaml":    true,
+	"toml":    true,
+	"db":      true,
+	"bson":    true,
+	"csv":     true,
+	"avro":    true,
+	"parquet": true,
+}
 
 type tagEntry struct {
 	fieldName string
@@ -25,13 +41,16 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 	// Map of tagKey -> tagValue -> []tagEntry
 	seen := make(map[string]map[string][]tagEntry)
 
-	// Collect tags from direct fields
+	// Collect tags from direct fields (only identifier tags)
 	for _, f := range info.Fields {
 		if f.Tags == nil {
 			continue
 		}
 		for _, tag := range f.Tags.Tags() {
 			if tag.Name == "" || tag.Name == "-" {
+				continue
+			}
+			if !identifierTagKeys[tag.Key] {
 				continue
 			}
 			if seen[tag.Key] == nil {
@@ -130,6 +149,9 @@ func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, de
 
 		for _, tag := range tags.Tags() {
 			if tag.Name == "" || tag.Name == "-" {
+				continue
+			}
+			if !identifierTagKeys[tag.Key] {
 				continue
 			}
 			if seen[tag.Key] == nil {
