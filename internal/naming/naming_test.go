@@ -117,3 +117,18 @@ func TestMatchesConvention(t *testing.T) {
 		})
 	}
 }
+
+func TestConvert_UnknownConvention(t *testing.T) {
+	// Unknown convention should return input unchanged
+	got := Convert("fooBar", "SCREAMING_CASE")
+	if got != "fooBar" {
+		t.Errorf("Convert with unknown convention should return input, got %q", got)
+	}
+}
+
+func TestTitleWord_Empty(t *testing.T) {
+	got := titleWord("")
+	if got != "" {
+		t.Errorf("titleWord(\"\") = %q, want \"\"", got)
+	}
+}

@@ -18,3 +18,17 @@ type NoTags struct {
 	Name string
 	Age  int
 }
+
+// Non-struct types to exercise traverse.go early-return branches.
+type MyString string
+
+type MyInterface interface {
+	Foo()
+}
+
+type MyAlias = string
+
+// MultiName tests multi-name field declarations.
+type MultiName struct {
+	A, B string `json:"a"`
+}

@@ -209,10 +209,85 @@ func TestAnalyzePackages_NoDuplicatesOnClean(t *testing.T) {
 	}
 }
 
+func TestAnalyzePackages_InvalidPattern(t *testing.T) {
+	a := tagaudit.New(&tagaudit.Config{})
+
+	_, err := a.AnalyzePackages("./nonexistent_package_xyz_123")
+	if err == nil {
+		t.Error("expected error for invalid package pattern, got nil")
+	}
+}
+
+func TestAnalyzePackages_NonStructTypes(t *testing.T) {
+	// testdata/basic now contains MyString, MyInterface, MyAlias — these
+	// should be silently skipped without errors
+	a := tagaudit.New(&tagaudit.Config{})
+
+	_, err := a.AnalyzePackages("./testdata/basic")
+	if err != nil {
+		t.Fatalf("AnalyzePackages should handle non-struct types gracefully: %v", err)
+	}
+}
+
+func TestSeverity_String(t *testing.T) {
+	tests := []struct {
+		s    tagaudit.Severity
+		want string
+	}{
+		{tagaudit.SeverityError, "error"},
+		{tagaudit.SeverityWarning, "warning"},
+		{tagaudit.SeverityInfo, "info"},
+		{tagaudit.Severity(99), "unknown"},
+	}
+	for _, tt := range tests {
+		got := tt.s.String()
+		if got != tt.want {
+			t.Errorf("Severity(%d).String() = %q, want %q", tt.s, got, tt.want)
+		}
+	}
+}
+
+func TestFinding_String(t *testing.T) {
+	f := tagaudit.Finding{
+		RuleID:   "test",
+		Severity: tagaudit.SeverityError,
+		Message:  "test message",
+	}
+	s := f.String()
+	if s == "" {
+		t.Error("Finding.String() returned empty string")
+	}
+}
+
 func TestNew_NilConfig(t *testing.T) {
 	a := tagaudit.New(nil)
 	if a == nil {
 		t.Fatal("New(nil) returned nil")
+	}
+}
+
+func TestNew_DefaultRulesFallback(t *testing.T) {
+	// Empty rules list falls back to default rules
+	a := tagaudit.New(&tagaudit.Config{
+		Rules: []any{},
+	})
+	if a == nil {
+		t.Fatal("New returned nil")
+	}
+	// Should use default rules and find issues
+	findings, err := a.AnalyzePackages("./testdata/basic")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+	// Default rules should find at least the syntax error
+	hasSyntax := false
+	for _, f := range findings {
+		if f.RuleID == "syntax" {
+			hasSyntax = true
+		}
+	}
+	if !hasSyntax {
+		t.Error("expected default rules to catch syntax errors")
 	}
 }
 

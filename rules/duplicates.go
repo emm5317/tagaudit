@@ -133,12 +133,13 @@ func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, de
 	for i := range st.NumFields() {
 		field := st.Field(i)
 		rawTag := st.Tag(i)
-		if rawTag == "" {
-			continue
-		}
 
 		if field.Anonymous() {
 			collectEmbeddedTags(field.Type(), seen, depth+1)
+			continue
+		}
+
+		if rawTag == "" {
 			continue
 		}
 
