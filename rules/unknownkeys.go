@@ -7,7 +7,10 @@ import (
 )
 
 // UnknownKeysRule reports tag keys not in the configured known set.
-type UnknownKeysRule struct{}
+type UnknownKeysRule struct {
+	cachedKeys []string
+	cachedSet  map[string]bool
+}
 
 func (r *UnknownKeysRule) ID() string          { return "unknownkeys" }
 func (r *UnknownKeysRule) Description() string { return "reports unknown tag keys" }
@@ -17,9 +20,14 @@ func (r *UnknownKeysRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Conf
 		return nil
 	}
 
-	known := make(map[string]bool, len(cfg.KnownTagKeys))
-	for _, k := range cfg.KnownTagKeys {
-		known[k] = true
+	known := r.cachedSet
+	if !slicesEqual(r.cachedKeys, cfg.KnownTagKeys) {
+		known = make(map[string]bool, len(cfg.KnownTagKeys))
+		for _, k := range cfg.KnownTagKeys {
+			known[k] = true
+		}
+		r.cachedKeys = cfg.KnownTagKeys
+		r.cachedSet = known
 	}
 
 	var findings []tagaudit.Finding

@@ -110,6 +110,47 @@ func TestCompletenessRule_SkipsUnexported(t *testing.T) {
 	}
 }
 
+func TestCompletenessRule_AllDashSkipsEnforcement(t *testing.T) {
+	r := &CompletenessRule{}
+	tags1, _ := parseTag(`json:"-"`)
+
+	info := tagaudit.StructInfo{
+		StructName: "Internal",
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewVar(token.NoPos, nil, "Secret", types.Typ[types.String]), Tags: tags1, RawTag: `json:"-"`},
+			{Field: types.NewVar(token.NoPos, nil, "Other", types.Typ[types.String]), Tags: nil, RawTag: ""},
+		},
+	}
+
+	findings := r.CheckStruct(info, &tagaudit.Config{RequiredTagKeys: []string{"json"}})
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings when all json tags are dash, got %d", len(findings))
+	}
+}
+
+func TestCompletenessRule_MixedDashAndReal(t *testing.T) {
+	r := &CompletenessRule{}
+	tags1, _ := parseTag(`json:"-"`)
+	tags2, _ := parseTag(`json:"email"`)
+
+	info := tagaudit.StructInfo{
+		StructName: "User",
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewVar(token.NoPos, nil, "Secret", types.Typ[types.String]), Tags: tags1, RawTag: `json:"-"`},
+			{Field: types.NewVar(token.NoPos, nil, "Email", types.Typ[types.String]), Tags: tags2, RawTag: `json:"email"`},
+			{Field: types.NewVar(token.NoPos, nil, "Name", types.Typ[types.String]), Tags: nil, RawTag: ""},
+		},
+	}
+
+	findings := r.CheckStruct(info, &tagaudit.Config{RequiredTagKeys: []string{"json"}})
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding for missing tag on Name, got %d", len(findings))
+	}
+	if findings[0].FieldName != "Name" {
+		t.Errorf("expected finding on Name, got %s", findings[0].FieldName)
+	}
+}
+
 func TestCompletenessRule_SkipsAnonymous(t *testing.T) {
 	r := &CompletenessRule{}
 	tags1, _ := parseTag(`json:"name"`)

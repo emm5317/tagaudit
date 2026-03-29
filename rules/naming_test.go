@@ -30,8 +30,38 @@ func TestNamingRule_SnakeCaseViolation(t *testing.T) {
 	if findings[0].Fix == nil {
 		t.Fatal("expected a fix suggestion")
 	}
-	if findings[0].Fix.NewTagValue != "user_name" {
-		t.Errorf("expected fix value 'user_name', got %q", findings[0].Fix.NewTagValue)
+	if findings[0].Fix.NewTagValue != `json:"user_name"` {
+		t.Errorf("expected fix value %q, got %q", `json:"user_name"`, findings[0].Fix.NewTagValue)
+	}
+}
+
+func TestNamingRule_MultiTagFix(t *testing.T) {
+	rule := &NamingRule{}
+	tags, err := parseTag(`json:"UserName" xml:"user"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &tagaudit.Config{
+		NamingConventions: map[string]string{"json": "snake_case"},
+	}
+
+	info := tagaudit.FieldInfo{
+		RawTag: `json:"UserName" xml:"user"`,
+		Tags:   tags,
+		Field:  fakeVar("UserName"),
+	}
+
+	findings := rule.CheckField(info, cfg)
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	if findings[0].Fix == nil {
+		t.Fatal("expected a fix suggestion")
+	}
+	// Fix must preserve the xml tag
+	if findings[0].Fix.NewTagValue != `json:"user_name" xml:"user"` {
+		t.Errorf("expected fix to preserve all tags, got %q", findings[0].Fix.NewTagValue)
 	}
 }
 

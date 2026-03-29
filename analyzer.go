@@ -103,5 +103,16 @@ func (a *Analyzer) AnalyzePackages(patterns ...string) ([]Finding, error) {
 		return fi.Pos.Column < fj.Pos.Column
 	})
 
+	// Filter by minimum severity if configured
+	if a.cfg.MinSeverity != nil {
+		filtered := findings[:0]
+		for _, f := range findings {
+			if f.Severity <= *a.cfg.MinSeverity {
+				filtered = append(filtered, f)
+			}
+		}
+		findings = filtered
+	}
+
 	return findings, nil
 }

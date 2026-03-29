@@ -21,22 +21,27 @@ func (r *CompletenessRule) CheckStruct(info tagaudit.StructInfo, cfg *tagaudit.C
 	var findings []tagaudit.Finding
 
 	for _, reqKey := range cfg.RequiredTagKeys {
-		// Check if any exported field has this tag key
+		// Check if any exported field has this tag key with a real value.
+		// If every field with the key uses "-" (opt-out), treat the struct
+		// as not using this tag key at all to avoid false positives.
 		hasKey := false
+		allDash := true
 		for _, f := range info.Fields {
 			if f.Field == nil || !f.Field.Exported() {
 				continue
 			}
 			if f.Tags != nil {
-				if _, err := f.Tags.Get(reqKey); err == nil {
+				if t, err := f.Tags.Get(reqKey); err == nil {
 					hasKey = true
-					break
+					if t.Name != "-" {
+						allDash = false
+					}
 				}
 			}
 		}
 
-		if !hasKey {
-			continue // no field has this key, nothing to enforce
+		if !hasKey || allDash {
+			continue
 		}
 
 		// Now flag exported fields missing the key

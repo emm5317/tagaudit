@@ -18,6 +18,17 @@ type Config struct {
 	// KnownTagKeys: if non-nil, any tag key not in this set produces a finding.
 	// If nil, the unknown-key check is disabled.
 	KnownTagKeys []string
+
+	// KnownOptions maps tag keys to additional valid options that supplement
+	// the built-in defaults (json, xml, yaml). For example, to allow gorm
+	// options: KnownOptions: map[string][]string{"gorm": {"primaryKey", "autoIncrement"}}.
+	KnownOptions map[string][]string
+
+	// MinSeverity filters findings to only include those at or below this
+	// severity level. nil means all findings are included.
+	// SeverityError (0) = errors only, SeverityWarning (1) = errors+warnings,
+	// SeverityInfo (2) = all.
+	MinSeverity *Severity
 }
 
 // DefaultConfig returns a Config with sensible defaults.

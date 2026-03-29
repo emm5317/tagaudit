@@ -50,6 +50,9 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 				for _, field := range fields {
 					for _, fc := range a.fieldCheckers {
 						for _, finding := range fc.CheckField(field, a.cfg) {
+							if a.cfg.MinSeverity != nil && finding.Severity > *a.cfg.MinSeverity {
+								continue
+							}
 							pos := field.ASTField.Pos()
 							end := token.NoPos
 							if field.ASTField.Tag != nil {
@@ -71,6 +74,9 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 				}
 				for _, sc := range a.structCheckers {
 					for _, finding := range sc.CheckStruct(si, a.cfg) {
+						if a.cfg.MinSeverity != nil && finding.Severity > *a.cfg.MinSeverity {
+							continue
+						}
 						pos := st.Pos()
 						end := token.NoPos
 						var astField *ast.Field

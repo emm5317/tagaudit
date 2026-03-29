@@ -5,6 +5,7 @@ import (
 
 	"github.com/emm5317/tagaudit"
 	"github.com/emm5317/tagaudit/internal/naming"
+	"github.com/fatih/structtag"
 )
 
 // NamingRule enforces naming conventions on tag values.
@@ -35,6 +36,18 @@ func (r *NamingRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) [
 			expected := naming.Convert(name, convention)
 			pos := posFromInfo(info)
 
+			var fix *tagaudit.SuggestedFix
+			if tags, err := structtag.Parse(info.RawTag); err == nil {
+				if t, err := tags.Get(key); err == nil {
+					t.Name = expected
+					tags.Set(t)
+					fix = &tagaudit.SuggestedFix{
+						Description: fmt.Sprintf("rename %s tag to %s", key, expected),
+						NewTagValue: tags.String(),
+					}
+				}
+			}
+
 			findings = append(findings, tagaudit.Finding{
 				Pos:       pos,
 				RuleID:    r.ID(),
@@ -42,10 +55,7 @@ func (r *NamingRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) [
 				Message:   fmt.Sprintf("field %s: %s tag %q does not follow %s convention, expected %q", info.Field.Name(), key, name, convention, expected),
 				FieldName: info.Field.Name(),
 				TagKey:    key,
-				Fix: &tagaudit.SuggestedFix{
-					Description: fmt.Sprintf("rename %s tag to %s", key, expected),
-					NewTagValue: expected,
-				},
+				Fix:       fix,
 			})
 		}
 	}
