@@ -1,0 +1,144 @@
+package rules
+
+import (
+	"fmt"
+	"go/types"
+
+	"github.com/emm5317/tagaudit"
+	"github.com/fatih/structtag"
+)
+
+// DuplicatesRule detects duplicate tag values within a struct, including
+// values from embedded struct fields.
+type DuplicatesRule struct{}
+
+func (r *DuplicatesRule) ID() string          { return "duplicates" }
+func (r *DuplicatesRule) Description() string { return "detects duplicate tag values" }
+
+type tagEntry struct {
+	fieldName string
+	depth     int // 0 = direct field, 1+ = embedded
+	info      tagaudit.FieldInfo
+}
+
+func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) []tagaudit.Finding {
+	// Map of tagKey -> tagValue -> []tagEntry
+	seen := make(map[string]map[string][]tagEntry)
+
+	// Collect tags from direct fields
+	for _, f := range info.Fields {
+		if f.Tags == nil {
+			continue
+		}
+		for _, tag := range f.Tags.Tags() {
+			if tag.Name == "" || tag.Name == "-" {
+				continue
+			}
+			if seen[tag.Key] == nil {
+				seen[tag.Key] = make(map[string][]tagEntry)
+			}
+			var fieldName string
+			if f.Field != nil {
+				fieldName = f.Field.Name()
+			}
+			seen[tag.Key][tag.Name] = append(seen[tag.Key][tag.Name], tagEntry{
+				fieldName: fieldName,
+				depth:     0,
+				info:      f,
+			})
+		}
+	}
+
+	// Collect tags from embedded structs
+	for _, f := range info.Fields {
+		if f.Field == nil || !f.Field.Anonymous() {
+			continue
+		}
+		collectEmbeddedTags(f.Field.Type(), seen, 1)
+	}
+
+	// Report duplicates
+	var findings []tagaudit.Finding
+	for tagKey, names := range seen {
+		for tagName, entries := range names {
+			if len(entries) < 2 {
+				continue
+			}
+			// Only report for entries that have position info (direct fields)
+			for _, e := range entries {
+				if e.depth > 0 {
+					continue // don't report on embedded fields — report on the struct that embeds them
+				}
+				otherFields := make([]string, 0, len(entries)-1)
+				for _, other := range entries {
+					if other.fieldName != e.fieldName {
+						otherFields = append(otherFields, other.fieldName)
+					}
+				}
+				if len(otherFields) == 0 {
+					continue
+				}
+				pos := posFromInfo(e.info)
+				findings = append(findings, tagaudit.Finding{
+					Pos:       pos,
+					RuleID:    r.ID(),
+					Severity:  tagaudit.SeverityWarning,
+					Message:   fmt.Sprintf("field %s: duplicate %s tag value %q (also on: %v)", e.fieldName, tagKey, tagName, otherFields),
+					FieldName: e.fieldName,
+					TagKey:    tagKey,
+				})
+			}
+		}
+	}
+
+	return findings
+}
+
+// collectEmbeddedTags recursively collects tag values from embedded struct types.
+func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, depth int) {
+	// Unwrap pointer types
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+
+	// Unwrap named types
+	if named, ok := t.(*types.Named); ok {
+		t = named.Underlying()
+	}
+
+	st, ok := t.(*types.Struct)
+	if !ok {
+		return
+	}
+
+	for i := range st.NumFields() {
+		field := st.Field(i)
+		rawTag := st.Tag(i)
+		if rawTag == "" {
+			continue
+		}
+
+		if field.Anonymous() {
+			collectEmbeddedTags(field.Type(), seen, depth+1)
+			continue
+		}
+
+		tags, err := structtag.Parse(rawTag)
+		if err != nil {
+			continue
+		}
+
+		for _, tag := range tags.Tags() {
+			if tag.Name == "" || tag.Name == "-" {
+				continue
+			}
+			if seen[tag.Key] == nil {
+				seen[tag.Key] = make(map[string][]tagEntry)
+			}
+			seen[tag.Key][tag.Name] = append(seen[tag.Key][tag.Name], tagEntry{
+				fieldName: field.Name(),
+				depth:     depth,
+			})
+		}
+	}
+}
