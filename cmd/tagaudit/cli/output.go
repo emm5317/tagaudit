@@ -25,6 +25,7 @@ func outputText(w io.Writer, findings []tagaudit.Finding) error {
 	for _, f := range findings {
 		fmt.Fprintln(w, f.String())
 	}
+	fmt.Fprintln(w, summary(findings))
 	return nil
 }
 
@@ -46,5 +47,51 @@ func outputJSON(w io.Writer, findings []tagaudit.Finding) error {
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	fmt.Fprintln(w, summary(findings))
+	return nil
+}
+
+func summary(findings []tagaudit.Finding) string {
+	if len(findings) == 0 {
+		return "No findings."
+	}
+
+	var errors, warnings, infos, fixable int
+	for _, f := range findings {
+		switch f.Severity {
+		case tagaudit.SeverityError:
+			errors++
+		case tagaudit.SeverityWarning:
+			warnings++
+		case tagaudit.SeverityInfo:
+			infos++
+		}
+		if f.Fix != nil {
+			fixable++
+		}
+	}
+
+	s := fmt.Sprintf("%d finding(s):", len(findings))
+	if errors > 0 {
+		s += fmt.Sprintf(" %d error", errors)
+		if errors > 1 {
+			s += "s"
+		}
+	}
+	if warnings > 0 {
+		s += fmt.Sprintf(" %d warning", warnings)
+		if warnings > 1 {
+			s += "s"
+		}
+	}
+	if infos > 0 {
+		s += fmt.Sprintf(" %d info", infos)
+	}
+	if fixable > 0 {
+		s += fmt.Sprintf(" (%d fixable)", fixable)
+	}
+	return s
 }
