@@ -45,7 +45,7 @@ func New(cfg *Config) *Analyzer {
 // severityAllowed reports whether a finding with the given severity should be
 // included under the current MinSeverity configuration.
 func (a *Analyzer) severityAllowed(s Severity) bool {
-	return a.cfg.MinSeverity == nil || s <= *a.cfg.MinSeverity
+	return s >= a.cfg.MinSeverity
 }
 
 // AnalyzePackages loads the named packages and runs all configured rules
@@ -72,7 +72,7 @@ func (a *Analyzer) AnalyzePackages(patterns ...string) ([]Finding, error) {
 	var findings []Finding
 
 	for _, pkg := range pkgs {
-		decls := extractStructs(pkg.Fset, pkg.Syntax, pkg.TypesInfo)
+		decls := extractStructs(pkg.Syntax, pkg.TypesInfo)
 		for _, decl := range decls {
 			fields := buildFieldInfos(pkg.Fset, decl.name, decl.styp, decl.astNode)
 

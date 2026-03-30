@@ -11,7 +11,7 @@
 
 A composable struct tag validation library and CLI for Go.
 
-`tagaudit` fills the gap between `fatih/structtag` (parsing only) and `go vet` (not usable as a library). It provides a pluggable rule system with built-in rules for common issues, smart typo suggestions, auto-fix support, and user-defined custom rules.
+`tagaudit` provides configurable, multi-rule struct tag validation for Go. The standard `go vet` structtag pass catches syntax errors; tagaudit adds naming conventions, duplicate detection, shadow detection, completeness checks, unknown-key validation with typo suggestions, and auto-fix support — all as a composable library, CLI, or `go/analysis` analyzer.
 
 ## Install
 
@@ -209,17 +209,16 @@ analyzer := tagaudit.NewAnalyzer(rules.DefaultConfig())
         "gorm": {"primaryKey", "autoIncrement", "not null"},
     },
 
-    // Filter output by severity. nil = all findings.
-    // SeverityError (0) = errors only, SeverityWarning (1) = errors+warnings, SeverityInfo (2) = all.
-    MinSeverity: tagaudit.SeverityPtr(tagaudit.SeverityWarning),
+    // Filter output by severity. The zero value (SeverityInfo) includes all.
+    // SeverityWarning = warnings+errors, SeverityError = errors only.
+    MinSeverity: tagaudit.SeverityWarning,
 }
 ```
 
 ## Known Limitations
 
-- **Anonymous structs**: Only named top-level struct type declarations are analyzed. Anonymous structs in variables or function literals are not checked.
-- **Type aliases**: Struct types behind type aliases may not be resolved in all cases.
-- **Embedded field nuance**: The `completeness`, `duplicates`, and `shadow` rules track embedded fields, but complex multi-level embedding hierarchies may produce unexpected results. The `"-"` tag value is treated as an explicit opt-out.
+- **Anonymous structs**: Named struct type declarations and anonymous structs in variable declarations and composite literals are analyzed. Anonymous structs in function parameter lists or return types are not currently checked.
+- **Embedded field depth**: The `completeness`, `duplicates`, and `shadow` rules recursively traverse embedded fields up to 10 levels deep with cycle protection. The `"-"` tag value is treated as an explicit opt-out.
 
 ## License
 

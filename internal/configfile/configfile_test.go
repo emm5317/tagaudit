@@ -91,11 +91,8 @@ func TestToConfig_FilterRules(t *testing.T) {
 	if len(cfg.Rules) != 2 {
 		t.Errorf("expected 2 rules, got %d", len(cfg.Rules))
 	}
-	if cfg.MinSeverity == nil {
-		t.Fatal("expected MinSeverity to be set")
-	}
-	if *cfg.MinSeverity != tagaudit.SeverityWarning {
-		t.Errorf("expected SeverityWarning, got %v", *cfg.MinSeverity)
+	if cfg.MinSeverity != tagaudit.SeverityWarning {
+		t.Errorf("expected SeverityWarning, got %v", cfg.MinSeverity)
 	}
 }
 

@@ -59,7 +59,7 @@ func (fc *FileConfig) ToConfig(allRules []tagaudit.Rule) (*tagaudit.Config, erro
 		if err != nil {
 			return nil, err
 		}
-		cfg.MinSeverity = tagaudit.SeverityPtr(sev)
+		cfg.MinSeverity = sev
 	}
 
 	return cfg, nil

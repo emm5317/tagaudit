@@ -212,6 +212,69 @@ func TestAnalyzePackages_NoDuplicatesOnClean(t *testing.T) {
 	}
 }
 
+func TestAnalyzePackages_TypeAlias(t *testing.T) {
+	a := tagaudit.New(&tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+	})
+
+	findings, err := a.AnalyzePackages("./testdata/alias")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+
+	// AliasedStruct = Base should NOT be analyzed separately (it's an alias,
+	// not a new named type). But UsesAlias should be analyzed and userName
+	// should trigger the naming rule.
+	var namingFindings []tagaudit.Finding
+	for _, f := range findings {
+		if f.RuleID == "naming" {
+			namingFindings = append(namingFindings, f)
+		}
+	}
+
+	if len(namingFindings) == 0 {
+		t.Error("expected at least one naming finding for userName in alias testdata, got 0")
+	}
+
+	for _, f := range namingFindings {
+		t.Logf("alias naming finding: %s", f)
+	}
+}
+
+func TestAnalyzePackages_AnonymousStructs(t *testing.T) {
+	a := tagaudit.New(&tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+	})
+
+	findings, err := a.AnalyzePackages("./testdata/anon")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+
+	var namingFindings, syntaxFindings []tagaudit.Finding
+	for _, f := range findings {
+		switch f.RuleID {
+		case "naming":
+			namingFindings = append(namingFindings, f)
+		case "syntax":
+			syntaxFindings = append(syntaxFindings, f)
+		}
+	}
+
+	if len(namingFindings) == 0 {
+		t.Error("expected naming finding for userName in anonymous composite literal, got 0")
+	}
+	if len(syntaxFindings) == 0 {
+		t.Error("expected syntax finding for bad tag in anonymous var declaration, got 0")
+	}
+
+	for _, f := range findings {
+		t.Logf("anon finding: %s", f)
+	}
+}
+
 func TestAnalyzePackages_InvalidPattern(t *testing.T) {
 	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
 
@@ -229,6 +292,66 @@ func TestAnalyzePackages_NonStructTypes(t *testing.T) {
 	_, err := a.AnalyzePackages("./testdata/basic")
 	if err != nil {
 		t.Fatalf("AnalyzePackages should handle non-struct types gracefully: %v", err)
+	}
+}
+
+func TestSeverityAllowed_ZeroValue(t *testing.T) {
+	// A default Config{} (MinSeverity zero value = SeverityInfo) should include all findings.
+	a := tagaudit.New(&tagaudit.Config{Rules: rules.All()})
+
+	findings, err := a.AnalyzePackages("./testdata/basic")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+
+	hasError, hasInfo := false, false
+	for _, f := range findings {
+		if f.Severity == tagaudit.SeverityError {
+			hasError = true
+		}
+		if f.Severity == tagaudit.SeverityInfo {
+			hasInfo = true
+		}
+	}
+
+	if !hasError {
+		t.Error("default config should include error-level findings")
+	}
+	// Info-level findings require naming config; test with naming testdata
+	a2 := tagaudit.New(&tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+	})
+	findings2, err := a2.AnalyzePackages("./testdata/naming")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+	for _, f := range findings2 {
+		if f.Severity == tagaudit.SeverityInfo {
+			hasInfo = true
+		}
+	}
+	if !hasInfo {
+		t.Error("default config should include info-level findings")
+	}
+}
+
+func TestSeverityAllowed_ErrorsOnly(t *testing.T) {
+	a := tagaudit.New(&tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+		MinSeverity:       tagaudit.SeverityError,
+	})
+
+	findings, err := a.AnalyzePackages("./testdata/basic")
+	if err != nil {
+		t.Fatalf("AnalyzePackages failed: %v", err)
+	}
+
+	for _, f := range findings {
+		if f.Severity != tagaudit.SeverityError {
+			t.Errorf("with MinSeverity=SeverityError, got finding with severity %v: %s", f.Severity, f)
+		}
 	}
 }
 

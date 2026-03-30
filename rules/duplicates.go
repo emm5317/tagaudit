@@ -73,7 +73,7 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 		if f.Field == nil || !f.Field.Anonymous() {
 			continue
 		}
-		collectEmbeddedTags(f.Field.Type(), seen, 1)
+		collectEmbeddedTags(f.Field.Type(), seen, 1, make(map[*types.Named]bool))
 	}
 
 	// Report duplicates
@@ -114,20 +114,21 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 }
 
 // collectEmbeddedTags recursively collects tag values from embedded struct types.
-func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, depth int) {
-	// Unwrap pointer types
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
+// visited tracks named types to prevent infinite recursion on cyclic definitions.
+func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, depth int, visited map[*types.Named]bool) {
+	if depth > maxEmbedDepth {
+		return
 	}
 
-	// Unwrap named types
-	if named, ok := t.(*types.Named); ok {
-		t = named.Underlying()
-	}
-
-	st, ok := t.(*types.Struct)
+	named, st, ok := unwrapToStruct(t)
 	if !ok {
 		return
+	}
+	if named != nil {
+		if visited[named] {
+			return
+		}
+		visited[named] = true
 	}
 
 	for i := range st.NumFields() {
@@ -135,7 +136,7 @@ func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, de
 		rawTag := st.Tag(i)
 
 		if field.Anonymous() {
-			collectEmbeddedTags(field.Type(), seen, depth+1)
+			collectEmbeddedTags(field.Type(), seen, depth+1, visited)
 			continue
 		}
 

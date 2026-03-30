@@ -186,6 +186,66 @@ func TestShadowRule_EmbeddedViaPointer(t *testing.T) {
 	}
 }
 
+func TestShadowRule_ThreeLevelEmbedding(t *testing.T) {
+	r := &ShadowRule{}
+
+	// Level 3
+	l3Fields := []*types.Var{types.NewVar(token.NoPos, nil, "Name", types.Typ[types.String])}
+	l3Tags := []string{`json:"name"`}
+	l3Struct := types.NewStruct(l3Fields, l3Tags)
+	l3Named := types.NewNamed(types.NewTypeName(token.NoPos, nil, "L3", nil), l3Struct, nil)
+
+	// Level 2 embeds Level 3
+	l2Fields := []*types.Var{types.NewField(token.NoPos, nil, "L3", l3Named, true)}
+	l2Tags := []string{""}
+	l2Struct := types.NewStruct(l2Fields, l2Tags)
+	l2Named := types.NewNamed(types.NewTypeName(token.NoPos, nil, "L2", nil), l2Struct, nil)
+
+	tags1, _ := parseTag(`json:"name"`)
+	info := tagaudit.StructInfo{
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewField(token.NoPos, nil, "L2", l2Named, true), Tags: nil, RawTag: ""},
+			{Field: fakeVar("Title"), Tags: tags1, RawTag: `json:"name"`},
+		},
+	}
+
+	findings := r.CheckStruct(info, nil)
+	if len(findings) == 0 {
+		t.Error("expected shadow finding with 3-level embedded struct")
+	}
+}
+
+func TestShadowRule_CyclicEmbedding(t *testing.T) {
+	r := &ShadowRule{}
+
+	aName := types.NewTypeName(token.NoPos, nil, "A", nil)
+	aNamed := types.NewNamed(aName, nil, nil)
+	bName := types.NewTypeName(token.NoPos, nil, "B", nil)
+	bNamed := types.NewNamed(bName, nil, nil)
+
+	bStruct := types.NewStruct(
+		[]*types.Var{types.NewField(token.NoPos, nil, "A", aNamed, true)},
+		[]string{""},
+	)
+	bNamed.SetUnderlying(bStruct)
+
+	aStruct := types.NewStruct(
+		[]*types.Var{types.NewField(token.NoPos, nil, "B", bNamed, true)},
+		[]string{""},
+	)
+	aNamed.SetUnderlying(aStruct)
+
+	info := tagaudit.StructInfo{
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewField(token.NoPos, nil, "A", aNamed, true), Tags: nil, RawTag: ""},
+		},
+	}
+
+	// Should not panic or infinite loop
+	findings := r.CheckStruct(info, nil)
+	_ = findings
+}
+
 func TestShadowRule_SkipsAnonymousFieldTags(t *testing.T) {
 	r := &ShadowRule{}
 

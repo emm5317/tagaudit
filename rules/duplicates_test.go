@@ -249,6 +249,68 @@ func TestDuplicatesRule_EmbeddedRecursive(t *testing.T) {
 	}
 }
 
+func TestDuplicatesRule_ThreeLevelEmbedding(t *testing.T) {
+	r := &DuplicatesRule{}
+
+	// Level 3 (deepest)
+	l3Fields := []*types.Var{types.NewVar(token.NoPos, nil, "ID", types.Typ[types.Int])}
+	l3Tags := []string{`json:"id"`}
+	l3Struct := types.NewStruct(l3Fields, l3Tags)
+	l3Named := types.NewNamed(types.NewTypeName(token.NoPos, nil, "L3", nil), l3Struct, nil)
+
+	// Level 2 embeds Level 3
+	l2Fields := []*types.Var{types.NewField(token.NoPos, nil, "L3", l3Named, true)}
+	l2Tags := []string{""}
+	l2Struct := types.NewStruct(l2Fields, l2Tags)
+	l2Named := types.NewNamed(types.NewTypeName(token.NoPos, nil, "L2", nil), l2Struct, nil)
+
+	// Level 1 embeds Level 2
+	tags1, _ := parseTag(`json:"id"`)
+	info := tagaudit.StructInfo{
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewField(token.NoPos, nil, "L2", l2Named, true), Tags: nil, RawTag: ""},
+			{Field: fakeVar("MyID"), Tags: tags1, RawTag: `json:"id"`},
+		},
+	}
+
+	findings := r.CheckStruct(info, nil)
+	if len(findings) == 0 {
+		t.Error("expected finding for duplicate with 3-level embedded struct")
+	}
+}
+
+func TestDuplicatesRule_CyclicEmbedding(t *testing.T) {
+	r := &DuplicatesRule{}
+
+	// Create cyclic types: A embeds B, B embeds A
+	aName := types.NewTypeName(token.NoPos, nil, "A", nil)
+	aNamed := types.NewNamed(aName, nil, nil)
+	bName := types.NewTypeName(token.NoPos, nil, "B", nil)
+	bNamed := types.NewNamed(bName, nil, nil)
+
+	bStruct := types.NewStruct(
+		[]*types.Var{types.NewField(token.NoPos, nil, "A", aNamed, true)},
+		[]string{""},
+	)
+	bNamed.SetUnderlying(bStruct)
+
+	aStruct := types.NewStruct(
+		[]*types.Var{types.NewField(token.NoPos, nil, "B", bNamed, true)},
+		[]string{""},
+	)
+	aNamed.SetUnderlying(aStruct)
+
+	info := tagaudit.StructInfo{
+		Fields: []tagaudit.FieldInfo{
+			{Field: types.NewField(token.NoPos, nil, "A", aNamed, true), Tags: nil, RawTag: ""},
+		},
+	}
+
+	// Should not panic or infinite loop
+	findings := r.CheckStruct(info, nil)
+	_ = findings // we just care it doesn't hang
+}
+
 func TestDuplicatesRule_EmbeddedBadTag(t *testing.T) {
 	r := &DuplicatesRule{}
 

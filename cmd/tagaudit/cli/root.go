@@ -124,7 +124,7 @@ func buildConfig() (*tagaudit.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		cfg.MinSeverity = tagaudit.SeverityPtr(sev)
+		cfg.MinSeverity = sev
 	}
 
 	return cfg, nil

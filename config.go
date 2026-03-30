@@ -24,11 +24,10 @@ type Config struct {
 	// options: KnownOptions: map[string][]string{"gorm": {"primaryKey", "autoIncrement"}}.
 	KnownOptions map[string][]string
 
-	// MinSeverity filters findings to only include those at or below this
-	// severity level. nil means all findings are included.
-	// SeverityError (0) = errors only, SeverityWarning (1) = errors+warnings,
-	// SeverityInfo (2) = all.
-	MinSeverity *Severity
+	// MinSeverity filters findings to only include those at or above this
+	// severity level. The zero value (SeverityInfo) includes all findings.
+	// SeverityWarning = warnings and errors, SeverityError = errors only.
+	MinSeverity Severity
 }
 
 // DefaultRulesFunc, if non-nil, is called by DefaultConfig to populate the

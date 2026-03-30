@@ -6,30 +6,28 @@ import (
 )
 
 // Severity classifies the importance of a finding.
+// Higher values are more severe. The zero value (SeverityInfo) includes all
+// findings, making a default Config{} permissive by default.
 type Severity int
 
 const (
-	SeverityError   Severity = iota // Must fix: broken tags, syntax errors
+	SeverityInfo    Severity = iota // Nice to fix: naming conventions, completeness
 	SeverityWarning                 // Should fix: duplicates, shadowing
-	SeverityInfo                    // Nice to fix: naming conventions, completeness
+	SeverityError                   // Must fix: broken tags, syntax errors
 )
 
 func (s Severity) String() string {
 	switch s {
-	case SeverityError:
-		return "error"
-	case SeverityWarning:
-		return "warning"
 	case SeverityInfo:
 		return "info"
+	case SeverityWarning:
+		return "warning"
+	case SeverityError:
+		return "error"
 	default:
 		return "unknown"
 	}
 }
-
-// SeverityPtr returns a pointer to the given Severity value,
-// useful for setting Config.MinSeverity from a constant.
-func SeverityPtr(s Severity) *Severity { return &s }
 
 // Finding is a single diagnostic produced by a rule.
 type Finding struct {

@@ -2,9 +2,30 @@ package rules
 
 import (
 	"go/token"
+	"go/types"
 
 	"github.com/emm5317/tagaudit"
 )
+
+// maxEmbedDepth is the maximum embedding depth to traverse.
+// This prevents stack overflow on cyclic type definitions.
+const maxEmbedDepth = 10
+
+// unwrapToStruct unwraps pointer, alias, and named type wrappers to
+// reach the underlying *types.Struct, if any. It returns the
+// intermediate *types.Named (for cycle tracking) and the struct.
+func unwrapToStruct(t types.Type) (named *types.Named, styp *types.Struct, ok bool) {
+	if ptr, isPtr := t.(*types.Pointer); isPtr {
+		t = ptr.Elem()
+	}
+	t = types.Unalias(t)
+	named, _ = t.(*types.Named)
+	if named != nil {
+		t = named.Underlying()
+	}
+	styp, ok = t.(*types.Struct)
+	return named, styp, ok
+}
 
 // posFromInfo extracts the best available position from a FieldInfo.
 // Returns a zero Position if no position info is available.

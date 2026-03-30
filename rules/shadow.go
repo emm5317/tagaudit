@@ -24,7 +24,7 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 		if f.Field == nil || !f.Field.Anonymous() {
 			continue
 		}
-		collectEmbeddedTagNames(f.Field.Type(), embeddedTags)
+		collectEmbeddedTagNames(f.Field.Type(), embeddedTags, 1, make(map[*types.Named]bool))
 	}
 
 	if len(embeddedTags) == 0 {
@@ -64,16 +64,21 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 }
 
 // collectEmbeddedTagNames collects tag key/value -> field name from embedded structs.
-func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string) {
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
+// visited tracks named types to prevent infinite recursion on cyclic definitions.
+func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string, depth int, visited map[*types.Named]bool) {
+	if depth > maxEmbedDepth {
+		return
 	}
-	if named, ok := t.(*types.Named); ok {
-		t = named.Underlying()
-	}
-	st, ok := t.(*types.Struct)
+
+	named, st, ok := unwrapToStruct(t)
 	if !ok {
 		return
+	}
+	if named != nil {
+		if visited[named] {
+			return
+		}
+		visited[named] = true
 	}
 
 	for i := range st.NumFields() {
@@ -81,7 +86,7 @@ func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string) {
 		rawTag := st.Tag(i)
 
 		if field.Anonymous() {
-			collectEmbeddedTagNames(field.Type(), out)
+			collectEmbeddedTagNames(field.Type(), out, depth+1, visited)
 			continue
 		}
 

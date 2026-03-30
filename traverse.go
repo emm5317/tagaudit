@@ -9,8 +9,7 @@ import (
 	"github.com/fatih/structtag"
 )
 
-// extractStructs walks AST files and finds all named struct type declarations.
-// It returns a list of structs with their AST nodes and resolved types.
+// structDecl holds the AST and type information for a discovered struct.
 type structDecl struct {
 	name    string
 	astNode *ast.StructType
@@ -28,7 +27,9 @@ func resolveStruct(ts *ast.TypeSpec, info *types.Info) (name string, astNode *as
 	if obj == nil {
 		return "", nil, nil, false
 	}
-	named, isNamed := obj.Type().(*types.Named)
+	// Unalias handles type aliases (e.g., type Foo = Bar) transparently;
+	// it is a no-op for non-alias types.
+	named, isNamed := types.Unalias(obj.Type()).(*types.Named)
 	if !isNamed {
 		return "", nil, nil, false
 	}
@@ -39,24 +40,51 @@ func resolveStruct(ts *ast.TypeSpec, info *types.Info) (name string, astNode *as
 	return ts.Name.Name, st, underlying, true
 }
 
-func extractStructs(fset *token.FileSet, files []*ast.File, info *types.Info) []structDecl {
+// extractStructs walks AST files and finds all struct type declarations,
+// including named types, anonymous structs in composite literals, and
+// anonymous structs in variable declarations.
+func extractStructs(files []*ast.File, info *types.Info) []structDecl {
 	var decls []structDecl
+	seen := make(map[*ast.StructType]bool)
 
 	for _, file := range files {
 		ast.Inspect(file, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if !ok {
-				return true
+			switch node := n.(type) {
+			case *ast.TypeSpec:
+				name, st, styp, ok := resolveStruct(node, info)
+				if ok && !seen[st] {
+					seen[st] = true
+					decls = append(decls, structDecl{name: name, astNode: st, styp: styp})
+				}
+
+			case *ast.CompositeLit:
+				st, ok := node.Type.(*ast.StructType)
+				if !ok || seen[st] {
+					break
+				}
+				tv, exists := info.Types[node.Type]
+				if !exists {
+					break
+				}
+				if styp, ok := tv.Type.(*types.Struct); ok {
+					seen[st] = true
+					decls = append(decls, structDecl{name: "", astNode: st, styp: styp})
+				}
+
+			case *ast.ValueSpec:
+				st, ok := node.Type.(*ast.StructType)
+				if !ok || seen[st] {
+					break
+				}
+				tv, exists := info.Types[node.Type]
+				if !exists {
+					break
+				}
+				if styp, ok := tv.Type.(*types.Struct); ok {
+					seen[st] = true
+					decls = append(decls, structDecl{name: "", astNode: st, styp: styp})
+				}
 			}
-			name, st, styp, ok := resolveStruct(ts, info)
-			if !ok {
-				return true
-			}
-			decls = append(decls, structDecl{
-				name:    name,
-				astNode: st,
-				styp:    styp,
-			})
 			return true
 		})
 	}
