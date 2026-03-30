@@ -31,12 +31,31 @@ type Config struct {
 	MinSeverity *Severity
 }
 
-// DefaultConfig returns a Config with sensible defaults.
-func DefaultConfig() *Config {
+// DefaultRulesFunc, if non-nil, is called by DefaultConfig to populate the
+// Rules field. The rules package sets this in its init function so that
+// tagaudit.DefaultConfig() automatically includes all built-in rules without
+// creating a circular import.
+var DefaultRulesFunc func() []Rule
+
+// BaseConfig returns the skeleton Config with sensible defaults but no rules.
+// Use DefaultConfig() to also get rules (when the rules package is imported),
+// or build the Config manually with rules.All() / rules.DefaultConfig().
+func BaseConfig() *Config {
 	return &Config{
 		NamingConventions: map[string]string{
 			"json": "snake_case",
 		},
 		RequiredTagKeys: []string{"json"},
 	}
+}
+
+// DefaultConfig returns a Config with sensible defaults. If the rules package
+// has been imported (directly or transitively), Rules is populated via
+// DefaultRulesFunc; otherwise Rules is nil and no rules are applied.
+func DefaultConfig() *Config {
+	cfg := BaseConfig()
+	if DefaultRulesFunc != nil {
+		cfg.Rules = DefaultRulesFunc()
+	}
+	return cfg
 }

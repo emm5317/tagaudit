@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	"github.com/emm5317/tagaudit"
+	"github.com/emm5317/tagaudit/internal/distance"
+	"github.com/fatih/structtag"
 )
 
 // UnknownKeysRule reports tag keys not in the configured known set.
-type UnknownKeysRule struct {
-	cachedKeys []string
-	cachedSet  map[string]bool
-}
+type UnknownKeysRule struct{}
 
 func (r *UnknownKeysRule) ID() string          { return "unknownkeys" }
 func (r *UnknownKeysRule) Description() string { return "reports unknown tag keys" }
@@ -20,14 +19,9 @@ func (r *UnknownKeysRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Conf
 		return nil
 	}
 
-	known := r.cachedSet
-	if !slicesEqual(r.cachedKeys, cfg.KnownTagKeys) {
-		known = make(map[string]bool, len(cfg.KnownTagKeys))
-		for _, k := range cfg.KnownTagKeys {
-			known[k] = true
-		}
-		r.cachedKeys = cfg.KnownTagKeys
-		r.cachedSet = known
+	known := make(map[string]bool, len(cfg.KnownTagKeys))
+	for _, k := range cfg.KnownTagKeys {
+		known[k] = true
 	}
 
 	var findings []tagaudit.Finding
@@ -40,13 +34,37 @@ func (r *UnknownKeysRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Conf
 			}
 			pos := posFromInfo(info)
 
+			msg := fmt.Sprintf("field %s: unknown tag key %q (not in known keys list)", fieldName, tag.Key)
+
+			var fix *tagaudit.SuggestedFix
+			if suggestion, ok := distance.ClosestMatch(tag.Key, cfg.KnownTagKeys, 2); ok {
+				msg += fmt.Sprintf(", did you mean %q?", suggestion)
+				// Build a fix that replaces the misspelled key
+				if tags, err := structtag.Parse(info.Tags.String()); err == nil {
+					if oldTag, err := tags.Get(tag.Key); err == nil {
+						tags.Delete(tag.Key)
+						newTag := &structtag.Tag{
+							Key:     suggestion,
+							Name:    oldTag.Name,
+							Options: oldTag.Options,
+						}
+						tags.Set(newTag)
+						fix = &tagaudit.SuggestedFix{
+							Description: fmt.Sprintf("rename tag key %s to %s", tag.Key, suggestion),
+							NewTagValue: tags.String(),
+						}
+					}
+				}
+			}
+
 			findings = append(findings, tagaudit.Finding{
 				Pos:       pos,
 				RuleID:    r.ID(),
 				Severity:  tagaudit.SeverityWarning,
-				Message:   fmt.Sprintf("field %s: unknown tag key %q (not in known keys list)", fieldName, tag.Key),
+				Message:   msg,
 				FieldName: fieldName,
 				TagKey:    tag.Key,
+				Fix:       fix,
 			})
 		}
 	}

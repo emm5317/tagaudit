@@ -26,6 +26,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Build CLI
+        run: go build -o tagaudit ./cmd/tagaudit
+
       - name: Run tests
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 

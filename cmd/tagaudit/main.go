@@ -1,11 +1,15 @@
 package main
 
 import (
-	"github.com/emm5317/tagaudit"
-	"github.com/emm5317/tagaudit/rules"
-	"golang.org/x/tools/go/analysis/singlechecker"
+	"fmt"
+	"os"
+
+	"github.com/emm5317/tagaudit/cmd/tagaudit/cli"
 )
 
 func main() {
-	singlechecker.Main(tagaudit.NewAnalyzer(rules.DefaultConfig()))
+	if err := cli.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

@@ -304,11 +304,29 @@ func TestRulesDefaultConfig(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
+	// The rules package is imported by this test file, so its init() sets
+	// tagaudit.DefaultRulesFunc — DefaultConfig() must include rules.
 	cfg := tagaudit.DefaultConfig()
 	if cfg == nil {
 		t.Fatal("DefaultConfig returned nil")
 	}
 	if cfg.NamingConventions["json"] != "snake_case" {
 		t.Errorf("expected json naming convention 'snake_case', got %q", cfg.NamingConventions["json"])
+	}
+	if len(cfg.Rules) == 0 {
+		t.Error("DefaultConfig should include built-in rules when the rules package is imported")
+	}
+}
+
+func TestBaseConfig(t *testing.T) {
+	cfg := tagaudit.BaseConfig()
+	if cfg == nil {
+		t.Fatal("BaseConfig returned nil")
+	}
+	if cfg.NamingConventions["json"] != "snake_case" {
+		t.Errorf("expected json naming convention 'snake_case', got %q", cfg.NamingConventions["json"])
+	}
+	if len(cfg.Rules) != 0 {
+		t.Error("BaseConfig should return a skeleton config with no rules")
 	}
 }

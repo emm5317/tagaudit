@@ -37,7 +37,7 @@ func (r *NamingRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) [
 			pos := posFromInfo(info)
 
 			var fix *tagaudit.SuggestedFix
-			if tags, err := structtag.Parse(info.RawTag); err == nil {
+			if tags, err := structtag.Parse(info.Tags.String()); err == nil {
 				if t, err := tags.Get(key); err == nil {
 					t.Name = expected
 					tags.Set(t)

@@ -2,6 +2,10 @@ package rules
 
 import "github.com/emm5317/tagaudit"
 
+func init() {
+	tagaudit.DefaultRulesFunc = func() []tagaudit.Rule { return All() }
+}
+
 // All returns all built-in rules.
 func All() []tagaudit.Rule {
 	return []tagaudit.Rule{
@@ -17,7 +21,8 @@ func All() []tagaudit.Rule {
 }
 
 // DefaultConfig returns a Config pre-populated with all built-in rules
-// and sensible defaults (snake_case for json, json as required tag key).
+// and sensible defaults (snake_case for json, json as required tag key,
+// and the default set of known tag keys).
 func DefaultConfig() *tagaudit.Config {
 	return &tagaudit.Config{
 		Rules: All(),
@@ -25,5 +30,6 @@ func DefaultConfig() *tagaudit.Config {
 			"json": "snake_case",
 		},
 		RequiredTagKeys: []string{"json"},
+		KnownTagKeys:    DefaultKnownTagKeys,
 	}
 }

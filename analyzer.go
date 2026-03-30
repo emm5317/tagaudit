@@ -42,6 +42,12 @@ func New(cfg *Config) *Analyzer {
 	return a
 }
 
+// severityAllowed reports whether a finding with the given severity should be
+// included under the current MinSeverity configuration.
+func (a *Analyzer) severityAllowed(s Severity) bool {
+	return a.cfg.MinSeverity == nil || s <= *a.cfg.MinSeverity
+}
+
 // AnalyzePackages loads the named packages and runs all configured rules
 // against every struct found in them. Patterns follow the same conventions
 // as `go build` (e.g., "./...", "./internal/models").
@@ -73,7 +79,11 @@ func (a *Analyzer) AnalyzePackages(patterns ...string) ([]Finding, error) {
 			// Run field-level checks
 			for _, field := range fields {
 				for _, fc := range a.fieldCheckers {
-					findings = append(findings, fc.CheckField(field, a.cfg)...)
+					for _, f := range fc.CheckField(field, a.cfg) {
+						if a.severityAllowed(f.Severity) {
+							findings = append(findings, f)
+						}
+					}
 				}
 			}
 
@@ -86,7 +96,11 @@ func (a *Analyzer) AnalyzePackages(patterns ...string) ([]Finding, error) {
 				Fields:     fields,
 			}
 			for _, sc := range a.structCheckers {
-				findings = append(findings, sc.CheckStruct(si, a.cfg)...)
+				for _, f := range sc.CheckStruct(si, a.cfg) {
+					if a.severityAllowed(f.Severity) {
+						findings = append(findings, f)
+					}
+				}
 			}
 		}
 	}
@@ -102,17 +116,6 @@ func (a *Analyzer) AnalyzePackages(patterns ...string) ([]Finding, error) {
 		}
 		return fi.Pos.Column < fj.Pos.Column
 	})
-
-	// Filter by minimum severity if configured
-	if a.cfg.MinSeverity != nil {
-		filtered := findings[:0]
-		for _, f := range findings {
-			if f.Severity <= *a.cfg.MinSeverity {
-				filtered = append(filtered, f)
-			}
-		}
-		findings = filtered
-	}
 
 	return findings, nil
 }

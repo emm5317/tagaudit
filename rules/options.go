@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/emm5317/tagaudit"
+	"github.com/emm5317/tagaudit/internal/distance"
+	"github.com/fatih/structtag"
 )
 
 // Known valid options for well-known tag keys.
@@ -65,6 +67,12 @@ func (r *OptionsRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) 
 			}
 		}
 
+		// Build candidate list for Levenshtein matching
+		var validOptsList []string
+		for k := range validOpts {
+			validOptsList = append(validOptsList, k)
+		}
+
 		for _, opt := range tag.Options {
 			if opt == "" {
 				continue
@@ -76,13 +84,37 @@ func (r *OptionsRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) 
 				}
 				pos := posFromInfo(info)
 
+				msg := fmt.Sprintf("field %s: unknown option %q for %s tag", fieldName, opt, tag.Key)
+
+				var fix *tagaudit.SuggestedFix
+				if suggestion, ok := distance.ClosestMatch(opt, validOptsList, 2); ok {
+					msg += fmt.Sprintf(", did you mean %q?", suggestion)
+					// Build a fix that replaces the misspelled option
+					if tags, err := structtag.Parse(info.Tags.String()); err == nil {
+						if t, err := tags.Get(tag.Key); err == nil {
+							for i, o := range t.Options {
+								if o == opt {
+									t.Options[i] = suggestion
+									break
+								}
+							}
+							tags.Set(t)
+							fix = &tagaudit.SuggestedFix{
+								Description: fmt.Sprintf("fix option %s to %s", opt, suggestion),
+								NewTagValue: tags.String(),
+							}
+						}
+					}
+				}
+
 				findings = append(findings, tagaudit.Finding{
 					Pos:       pos,
 					RuleID:    r.ID(),
 					Severity:  tagaudit.SeverityWarning,
-					Message:   fmt.Sprintf("field %s: unknown option %q for %s tag", fieldName, opt, tag.Key),
+					Message:   msg,
 					FieldName: fieldName,
 					TagKey:    tag.Key,
+					Fix:       fix,
 				})
 			}
 		}

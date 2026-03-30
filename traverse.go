@@ -17,6 +17,28 @@ type structDecl struct {
 	styp    *types.Struct
 }
 
+// resolveStruct checks whether a TypeSpec declares a named struct type
+// and returns its name, AST node, and resolved types.Struct.
+func resolveStruct(ts *ast.TypeSpec, info *types.Info) (name string, astNode *ast.StructType, styp *types.Struct, ok bool) {
+	st, isStruct := ts.Type.(*ast.StructType)
+	if !isStruct {
+		return "", nil, nil, false
+	}
+	obj := info.Defs[ts.Name]
+	if obj == nil {
+		return "", nil, nil, false
+	}
+	named, isNamed := obj.Type().(*types.Named)
+	if !isNamed {
+		return "", nil, nil, false
+	}
+	underlying, isStruct := named.Underlying().(*types.Struct)
+	if !isStruct {
+		return "", nil, nil, false
+	}
+	return ts.Name.Name, st, underlying, true
+}
+
 func extractStructs(fset *token.FileSet, files []*ast.File, info *types.Info) []structDecl {
 	var decls []structDecl
 
@@ -26,24 +48,12 @@ func extractStructs(fset *token.FileSet, files []*ast.File, info *types.Info) []
 			if !ok {
 				return true
 			}
-			st, ok := ts.Type.(*ast.StructType)
-			if !ok {
-				return true
-			}
-			obj := info.Defs[ts.Name]
-			if obj == nil {
-				return true
-			}
-			named, ok := obj.Type().(*types.Named)
-			if !ok {
-				return true
-			}
-			styp, ok := named.Underlying().(*types.Struct)
+			name, st, styp, ok := resolveStruct(ts, info)
 			if !ok {
 				return true
 			}
 			decls = append(decls, structDecl{
-				name:    ts.Name.Name,
+				name:    name,
 				astNode: st,
 				styp:    styp,
 			})

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -26,31 +25,18 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 			nodeFilter := []ast.Node{(*ast.TypeSpec)(nil)}
 			insp.Preorder(nodeFilter, func(n ast.Node) {
 				ts := n.(*ast.TypeSpec)
-				st, ok := ts.Type.(*ast.StructType)
+				name, st, styp, ok := resolveStruct(ts, pass.TypesInfo)
 				if !ok {
 					return
 				}
 
-				obj := pass.TypesInfo.Defs[ts.Name]
-				if obj == nil {
-					return
-				}
-				named, ok := obj.Type().(*types.Named)
-				if !ok {
-					return
-				}
-				styp, ok := named.Underlying().(*types.Struct)
-				if !ok {
-					return
-				}
-
-				fields := buildFieldInfos(pass.Fset, ts.Name.Name, styp, st)
+				fields := buildFieldInfos(pass.Fset, name, styp, st)
 
 				// Run field-level checks
 				for _, field := range fields {
 					for _, fc := range a.fieldCheckers {
 						for _, finding := range fc.CheckField(field, a.cfg) {
-							if a.cfg.MinSeverity != nil && finding.Severity > *a.cfg.MinSeverity {
+							if !a.severityAllowed(finding.Severity) {
 								continue
 							}
 							pos := field.ASTField.Pos()
@@ -67,14 +53,14 @@ func NewAnalyzer(cfg *Config) *analysis.Analyzer {
 				// Run struct-level checks
 				si := StructInfo{
 					Fset:       pass.Fset,
-					StructName: ts.Name.Name,
+					StructName: name,
 					StructType: styp,
 					ASTNode:    st,
 					Fields:     fields,
 				}
 				for _, sc := range a.structCheckers {
 					for _, finding := range sc.CheckStruct(si, a.cfg) {
-						if a.cfg.MinSeverity != nil && finding.Severity > *a.cfg.MinSeverity {
+						if !a.severityAllowed(finding.Severity) {
 							continue
 						}
 						pos := st.Pos()
