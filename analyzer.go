@@ -20,9 +20,8 @@ type Analyzer struct {
 }
 
 // New creates an Analyzer with the given config.
-// If cfg is nil, DefaultConfig() is used.
-// If cfg.Rules is empty, no rules are applied; use rules.All() or
-// rules.DefaultConfig() to include the built-in rule set.
+// If cfg is nil, DefaultConfig() is used (which has no rules).
+// Use rules.DefaultConfig() to include the built-in rule set.
 func New(cfg *Config) *Analyzer {
 	if cfg == nil {
 		cfg = DefaultConfig()

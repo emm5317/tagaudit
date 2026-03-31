@@ -38,3 +38,14 @@ func posFromInfo(info tagaudit.FieldInfo) token.Position {
 	}
 	return info.Fset.Position(info.ASTField.Pos())
 }
+
+// tagSpanFromInfo returns the byte offsets of the tag literal (including
+// backticks) in the source file. Returns (0, 0) if unavailable.
+func tagSpanFromInfo(info tagaudit.FieldInfo) (start, end int) {
+	if info.Fset == nil || info.ASTField == nil || info.ASTField.Tag == nil {
+		return 0, 0
+	}
+	s := info.Fset.Position(info.ASTField.Tag.Pos())
+	e := info.Fset.Position(info.ASTField.Tag.End())
+	return s.Offset, e.Offset
+}

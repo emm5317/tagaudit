@@ -50,7 +50,6 @@ func outputJSON(w io.Writer, findings []tagaudit.Finding) error {
 	if err := enc.Encode(out); err != nil {
 		return err
 	}
-	fmt.Fprintln(w, summary(findings))
 	return nil
 }
 

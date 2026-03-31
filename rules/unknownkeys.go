@@ -49,9 +49,12 @@ func (r *UnknownKeysRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Conf
 							Options: oldTag.Options,
 						}
 						tags.Set(newTag)
+						tagStart, tagEnd := tagSpanFromInfo(info)
 						fix = &tagaudit.SuggestedFix{
 							Description: fmt.Sprintf("rename tag key %s to %s", tag.Key, suggestion),
 							NewTagValue: tags.String(),
+							TagStart:    tagStart,
+							TagEnd:      tagEnd,
 						}
 					}
 				}

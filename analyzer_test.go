@@ -427,8 +427,8 @@ func TestRulesDefaultConfig(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
-	// The rules package is imported by this test file, so its init() sets
-	// tagaudit.DefaultRulesFunc — DefaultConfig() must include rules.
+	// DefaultConfig returns sensible defaults but no rules.
+	// Use rules.DefaultConfig() to get a config with rules.
 	cfg := tagaudit.DefaultConfig()
 	if cfg == nil {
 		t.Fatal("DefaultConfig returned nil")
@@ -436,8 +436,14 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.NamingConventions["json"] != "snake_case" {
 		t.Errorf("expected json naming convention 'snake_case', got %q", cfg.NamingConventions["json"])
 	}
-	if len(cfg.Rules) == 0 {
-		t.Error("DefaultConfig should include built-in rules when the rules package is imported")
+	if len(cfg.Rules) != 0 {
+		t.Error("DefaultConfig should not include rules; use rules.DefaultConfig() instead")
+	}
+
+	// rules.DefaultConfig() should include built-in rules.
+	rcfg := rules.DefaultConfig()
+	if len(rcfg.Rules) == 0 {
+		t.Error("rules.DefaultConfig should include built-in rules")
 	}
 }
 

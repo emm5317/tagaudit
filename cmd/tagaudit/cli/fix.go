@@ -40,8 +40,77 @@ func applyFixesToFile(path string, findings []tagaudit.Finding) (int, error) {
 		return 0, err
 	}
 
-	content := string(src)
-	lines := strings.Split(content, "\n")
+	// Check if all fixes have byte offsets for precise replacement
+	allHaveOffsets := true
+	for _, f := range findings {
+		if f.Fix == nil {
+			continue
+		}
+		if f.Fix.TagStart <= 0 || f.Fix.TagEnd <= 0 || f.Fix.TagEnd <= f.Fix.TagStart {
+			allHaveOffsets = false
+			break
+		}
+	}
+
+	var applied int
+	var result []byte
+
+	if allHaveOffsets {
+		result, applied = applyByteOffsetFixes(src, findings)
+	} else {
+		result, applied = applyLineFixes(src, findings)
+	}
+
+	if applied == 0 {
+		return 0, nil
+	}
+
+	// Format with go/format to ensure valid Go
+	formatted, err := format.Source(result)
+	if err != nil {
+		// Write unformatted if formatting fails
+		formatted = result
+	}
+
+	if err := os.WriteFile(path, formatted, 0644); err != nil {
+		return 0, err
+	}
+
+	return applied, nil
+}
+
+// applyByteOffsetFixes uses exact byte offsets to replace tag literals.
+func applyByteOffsetFixes(src []byte, findings []tagaudit.Finding) ([]byte, int) {
+	// Sort by TagStart descending so replacements don't shift earlier offsets
+	sort.Slice(findings, func(i, j int) bool {
+		return findings[i].Fix.TagStart > findings[j].Fix.TagStart
+	})
+
+	applied := 0
+	result := make([]byte, len(src))
+	copy(result, src)
+
+	for _, f := range findings {
+		if f.Fix == nil {
+			continue
+		}
+		start := f.Fix.TagStart
+		end := f.Fix.TagEnd
+		if start <= 0 || end <= 0 || end > len(result) || start >= end {
+			continue
+		}
+
+		replacement := []byte("`" + f.Fix.NewTagValue + "`")
+		result = append(result[:start], append(replacement, result[end:]...)...)
+		applied++
+	}
+
+	return result, applied
+}
+
+// applyLineFixes is the fallback that uses line-based backtick search.
+func applyLineFixes(src []byte, findings []tagaudit.Finding) ([]byte, int) {
+	lines := strings.Split(string(src), "\n")
 
 	// Sort findings by line in reverse order so replacements don't shift offsets
 	sort.Slice(findings, func(i, j int) bool {
@@ -68,22 +137,5 @@ func applyFixesToFile(path string, findings []tagaudit.Finding) (int, error) {
 		applied++
 	}
 
-	if applied == 0 {
-		return 0, nil
-	}
-
-	newContent := strings.Join(lines, "\n")
-
-	// Format with go/format to ensure valid Go
-	formatted, err := format.Source([]byte(newContent))
-	if err != nil {
-		// Write unformatted if formatting fails
-		formatted = []byte(newContent)
-	}
-
-	if err := os.WriteFile(path, formatted, 0644); err != nil {
-		return 0, err
-	}
-
-	return applied, nil
+	return []byte(strings.Join(lines, "\n")), applied
 }

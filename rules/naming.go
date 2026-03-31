@@ -41,9 +41,12 @@ func (r *NamingRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) [
 				if t, err := tags.Get(key); err == nil {
 					t.Name = expected
 					tags.Set(t)
+					tagStart, tagEnd := tagSpanFromInfo(info)
 					fix = &tagaudit.SuggestedFix{
 						Description: fmt.Sprintf("rename %s tag to %s", key, expected),
 						NewTagValue: tags.String(),
+						TagStart:    tagStart,
+						TagEnd:      tagEnd,
 					}
 				}
 			}
