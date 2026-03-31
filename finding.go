@@ -50,4 +50,11 @@ func (f Finding) String() string {
 type SuggestedFix struct {
 	Description string
 	NewTagValue string // the corrected tag string for the field
+
+	// TagStart and TagEnd are byte offsets in the source file for the
+	// tag literal (including backticks). When set (both > 0), the CLI
+	// fixer uses these for precise replacement instead of line-based
+	// heuristics. The go/analysis path uses AST positions directly.
+	TagStart int
+	TagEnd   int
 }

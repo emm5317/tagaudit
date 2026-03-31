@@ -24,21 +24,20 @@ type Config struct {
 	// options: KnownOptions: map[string][]string{"gorm": {"primaryKey", "autoIncrement"}}.
 	KnownOptions map[string][]string
 
+	// IdentifierTagKeys lists tag keys whose values represent unique field
+	// identifiers (e.g., json, xml, yaml). These are checked by the duplicates
+	// and shadow rules. If nil, a built-in default set is used.
+	IdentifierTagKeys []string
+
 	// MinSeverity filters findings to only include those at or above this
 	// severity level. The zero value (SeverityInfo) includes all findings.
 	// SeverityWarning = warnings and errors, SeverityError = errors only.
 	MinSeverity Severity
 }
 
-// DefaultRulesFunc, if non-nil, is called by DefaultConfig to populate the
-// Rules field. The rules package sets this in its init function so that
-// tagaudit.DefaultConfig() automatically includes all built-in rules without
-// creating a circular import.
-var DefaultRulesFunc func() []Rule
-
-// BaseConfig returns the skeleton Config with sensible defaults but no rules.
-// Use DefaultConfig() to also get rules (when the rules package is imported),
-// or build the Config manually with rules.All() / rules.DefaultConfig().
+// BaseConfig returns a Config with sensible defaults but no rules.
+// Use rules.DefaultConfig() to get a Config that includes the built-in
+// rule set, or build the Config manually with rules.All().
 func BaseConfig() *Config {
 	return &Config{
 		NamingConventions: map[string]string{
@@ -48,13 +47,8 @@ func BaseConfig() *Config {
 	}
 }
 
-// DefaultConfig returns a Config with sensible defaults. If the rules package
-// has been imported (directly or transitively), Rules is populated via
-// DefaultRulesFunc; otherwise Rules is nil and no rules are applied.
+// DefaultConfig returns a Config with sensible defaults but no rules.
+// To include the built-in rules, use rules.DefaultConfig() instead.
 func DefaultConfig() *Config {
-	cfg := BaseConfig()
-	if DefaultRulesFunc != nil {
-		cfg.Rules = DefaultRulesFunc()
-	}
-	return cfg
+	return BaseConfig()
 }

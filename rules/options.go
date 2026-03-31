@@ -99,9 +99,12 @@ func (r *OptionsRule) CheckField(info tagaudit.FieldInfo, cfg *tagaudit.Config) 
 								}
 							}
 							tags.Set(t)
+							tagStart, tagEnd := tagSpanFromInfo(info)
 							fix = &tagaudit.SuggestedFix{
 								Description: fmt.Sprintf("fix option %s to %s", opt, suggestion),
 								NewTagValue: tags.String(),
+								TagStart:    tagStart,
+								TagEnd:      tagEnd,
 							}
 						}
 					}

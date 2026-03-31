@@ -83,6 +83,10 @@ known_tag_keys: [json, yaml, xml, db, gorm, bson, mapstructure, toml]
 known_options:
   gorm: [primaryKey, autoIncrement, column, type, size, index, unique]
 
+# Tag keys treated as field identifiers for duplicate/shadow detection.
+# Defaults to: json, xml, yaml, toml, db, bson, csv, avro, parquet
+identifier_tag_keys: [json, yaml, xml, db, bson]
+
 min_severity: warning
 ```
 
@@ -208,6 +212,11 @@ analyzer := tagaudit.NewAnalyzer(rules.DefaultConfig())
     KnownOptions: map[string][]string{
         "gorm": {"primaryKey", "autoIncrement", "not null"},
     },
+
+    // Tag keys whose values are unique field identifiers, checked by
+    // the duplicates and shadow rules. nil = built-in defaults
+    // (json, xml, yaml, toml, db, bson, csv, avro, parquet).
+    IdentifierTagKeys: []string{"json", "yaml", "db"},
 
     // Filter output by severity. The zero value (SeverityInfo) includes all.
     // SeverityWarning = warnings+errors, SeverityError = errors only.

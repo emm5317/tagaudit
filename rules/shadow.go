@@ -15,7 +15,9 @@ type ShadowRule struct{}
 func (r *ShadowRule) ID() string          { return "shadow" }
 func (r *ShadowRule) Description() string { return "detects shadowed tags in embedded structs" }
 
-func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) []tagaudit.Finding {
+func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, cfg *tagaudit.Config) []tagaudit.Finding {
+	idTags := identifierTagSet(cfg)
+
 	// Collect tag values from embedded structs
 	// Map of tagKey -> tagValue -> embedded field name
 	embeddedTags := make(map[string]map[string]string)
@@ -24,7 +26,7 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 		if f.Field == nil || !f.Field.Anonymous() {
 			continue
 		}
-		collectEmbeddedTagNames(f.Field.Type(), embeddedTags, 1, make(map[*types.Named]bool))
+		collectEmbeddedTagNames(f.Field.Type(), embeddedTags, 1, make(map[*types.Named]bool), idTags)
 	}
 
 	if len(embeddedTags) == 0 {
@@ -43,7 +45,7 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 			if tag.Name == "" || tag.Name == "-" {
 				continue
 			}
-			if !identifierTagKeys[tag.Key] {
+			if !idTags[tag.Key] {
 				continue
 			}
 			if embFieldName, ok := embeddedTags[tag.Key][tag.Name]; ok {
@@ -65,7 +67,7 @@ func (r *ShadowRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) [
 
 // collectEmbeddedTagNames collects tag key/value -> field name from embedded structs.
 // visited tracks named types to prevent infinite recursion on cyclic definitions.
-func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string, depth int, visited map[*types.Named]bool) {
+func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string, depth int, visited map[*types.Named]bool, idTags map[string]bool) {
 	if depth > maxEmbedDepth {
 		return
 	}
@@ -86,7 +88,7 @@ func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string, dep
 		rawTag := st.Tag(i)
 
 		if field.Anonymous() {
-			collectEmbeddedTagNames(field.Type(), out, depth+1, visited)
+			collectEmbeddedTagNames(field.Type(), out, depth+1, visited, idTags)
 			continue
 		}
 
@@ -103,7 +105,7 @@ func collectEmbeddedTagNames(t types.Type, out map[string]map[string]string, dep
 			if tag.Name == "" || tag.Name == "-" {
 				continue
 			}
-			if !identifierTagKeys[tag.Key] {
+			if !idTags[tag.Key] {
 				continue
 			}
 			if out[tag.Key] == nil {

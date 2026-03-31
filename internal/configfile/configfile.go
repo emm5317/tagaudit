@@ -16,6 +16,7 @@ type FileConfig struct {
 	RequiredTagKeys   []string            `yaml:"required_tag_keys"`
 	KnownTagKeys      []string            `yaml:"known_tag_keys"`
 	KnownOptions      map[string][]string `yaml:"known_options"`
+	IdentifierTagKeys []string            `yaml:"identifier_tag_keys"`
 	MinSeverity       string              `yaml:"min_severity"`
 }
 
@@ -48,6 +49,7 @@ func (fc *FileConfig) ToConfig(allRules []tagaudit.Rule) (*tagaudit.Config, erro
 		RequiredTagKeys:   fc.RequiredTagKeys,
 		KnownTagKeys:      fc.KnownTagKeys,
 		KnownOptions:      fc.KnownOptions,
+		IdentifierTagKeys: fc.IdentifierTagKeys,
 	}
 
 	// Filter rules based on enable/disable lists

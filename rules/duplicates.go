@@ -17,18 +17,24 @@ type DuplicatesRule struct{}
 func (r *DuplicatesRule) ID() string          { return "duplicates" }
 func (r *DuplicatesRule) Description() string { return "detects duplicate tag values" }
 
-// identifierTagKeys are tag keys where the value represents a unique
+// DefaultIdentifierTagKeys are tag keys where the value represents a unique
 // field name. Duplicate values in these tags indicate a real conflict.
-var identifierTagKeys = map[string]bool{
-	"json":    true,
-	"xml":     true,
-	"yaml":    true,
-	"toml":    true,
-	"db":      true,
-	"bson":    true,
-	"csv":     true,
-	"avro":    true,
-	"parquet": true,
+var DefaultIdentifierTagKeys = []string{
+	"json", "xml", "yaml", "toml", "db", "bson", "csv", "avro", "parquet",
+}
+
+// identifierTagSet returns the set of identifier tag keys to use,
+// preferring cfg.IdentifierTagKeys if set, else DefaultIdentifierTagKeys.
+func identifierTagSet(cfg *tagaudit.Config) map[string]bool {
+	keys := DefaultIdentifierTagKeys
+	if cfg != nil && len(cfg.IdentifierTagKeys) > 0 {
+		keys = cfg.IdentifierTagKeys
+	}
+	m := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		m[k] = true
+	}
+	return m
 }
 
 type tagEntry struct {
@@ -37,7 +43,9 @@ type tagEntry struct {
 	info      tagaudit.FieldInfo
 }
 
-func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Config) []tagaudit.Finding {
+func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, cfg *tagaudit.Config) []tagaudit.Finding {
+	idTags := identifierTagSet(cfg)
+
 	// Map of tagKey -> tagValue -> []tagEntry
 	seen := make(map[string]map[string][]tagEntry)
 
@@ -50,7 +58,7 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 			if tag.Name == "" || tag.Name == "-" {
 				continue
 			}
-			if !identifierTagKeys[tag.Key] {
+			if !idTags[tag.Key] {
 				continue
 			}
 			if seen[tag.Key] == nil {
@@ -73,7 +81,7 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 		if f.Field == nil || !f.Field.Anonymous() {
 			continue
 		}
-		collectEmbeddedTags(f.Field.Type(), seen, 1, make(map[*types.Named]bool))
+		collectEmbeddedTags(f.Field.Type(), seen, 1, make(map[*types.Named]bool), idTags)
 	}
 
 	// Report duplicates
@@ -115,7 +123,7 @@ func (r *DuplicatesRule) CheckStruct(info tagaudit.StructInfo, _ *tagaudit.Confi
 
 // collectEmbeddedTags recursively collects tag values from embedded struct types.
 // visited tracks named types to prevent infinite recursion on cyclic definitions.
-func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, depth int, visited map[*types.Named]bool) {
+func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, depth int, visited map[*types.Named]bool, idTags map[string]bool) {
 	if depth > maxEmbedDepth {
 		return
 	}
@@ -136,7 +144,7 @@ func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, de
 		rawTag := st.Tag(i)
 
 		if field.Anonymous() {
-			collectEmbeddedTags(field.Type(), seen, depth+1, visited)
+			collectEmbeddedTags(field.Type(), seen, depth+1, visited, idTags)
 			continue
 		}
 
@@ -153,7 +161,7 @@ func collectEmbeddedTags(t types.Type, seen map[string]map[string][]tagEntry, de
 			if tag.Name == "" || tag.Name == "-" {
 				continue
 			}
-			if !identifierTagKeys[tag.Key] {
+			if !idTags[tag.Key] {
 				continue
 			}
 			if seen[tag.Key] == nil {

@@ -2,10 +2,6 @@ package rules
 
 import "github.com/emm5317/tagaudit"
 
-func init() {
-	tagaudit.DefaultRulesFunc = func() []tagaudit.Rule { return All() }
-}
-
 // All returns all built-in rules.
 func All() []tagaudit.Rule {
 	return []tagaudit.Rule{
