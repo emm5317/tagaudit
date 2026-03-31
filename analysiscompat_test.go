@@ -57,3 +57,49 @@ func TestAnalyzers_Count(t *testing.T) {
 		names[a.Name] = true
 	}
 }
+
+func TestNewAnalyzer_AnonymousStructs(t *testing.T) {
+	cfg := &tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+	}
+	analyzer := tagaudit.NewAnalyzer(cfg)
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analyzer, "analysistest/anon")
+}
+
+func TestNewAnalyzer_Fixes(t *testing.T) {
+	cfg := &tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+		RequiredTagKeys:   []string{"json"},
+	}
+	analyzer := tagaudit.NewAnalyzer(cfg)
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analyzer, "analysistest/fixes")
+}
+
+func TestNewAnalyzer_SeverityFiltering(t *testing.T) {
+	cfg := &tagaudit.Config{
+		Rules:             rules.All(),
+		NamingConventions: map[string]string{"json": "snake_case"},
+		RequiredTagKeys:   []string{"json"},
+		MinSeverity:       tagaudit.SeverityError,
+	}
+	analyzer := tagaudit.NewAnalyzer(cfg)
+
+	// With MinSeverity=Error, naming (warning) and completeness (warning)
+	// should be filtered out; only syntax (error) should remain.
+	testdata := analysistest.TestData()
+	// Run against basic which has syntax errors (error level)
+	analysistest.Run(t, testdata, analyzer, "analysistest/severityfilter")
+}
+
+func TestNewSingleRuleAnalyzer_Run(t *testing.T) {
+	cfg := &tagaudit.Config{
+		NamingConventions: map[string]string{"json": "snake_case"},
+	}
+	syntaxAnalyzer := tagaudit.NewSingleRuleAnalyzer(&rules.SyntaxRule{}, cfg)
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, syntaxAnalyzer, "analysistest/severityfilter")
+}
