@@ -11,7 +11,7 @@
 
 A composable struct tag validation library and CLI for Go.
 
-`tagaudit` provides configurable, multi-rule struct tag validation for Go. The standard `go vet` structtag pass catches syntax errors; tagaudit adds naming conventions, duplicate detection, shadow detection, completeness checks, unknown-key validation with typo suggestions, and auto-fix support — all as a composable library, CLI, or `go/analysis` analyzer.
+`tagaudit` provides configurable, multi-rule struct tag validation for Go. The standard `go vet` structtag pass catches syntax errors; tagaudit adds naming conventions, duplicate detection, shadow detection, completeness checks, unknown-key validation with typo suggestions, and auto-fix support for selected rules — all as a composable library, CLI, or `go/analysis` analyzer.
 
 ## Install
 
@@ -149,10 +149,10 @@ cfg := rules.GORMPreset()
 | Rule | Type | What it catches |
 |------|------|-----------------|
 | `syntax` | per-field | Malformed struct tag strings |
-| `naming` | per-field | Naming convention violations (e.g., camelCase in json tags when snake_case is expected). Provides auto-fix suggestions. |
-| `options` | per-field | Invalid options for well-known tags (e.g., `json:"foo,omitemtpy"` → suggests `omitempty`). Extensible via `KnownOptions`. |
+| `naming` | per-field | Naming convention violations (e.g., camelCase in json tags when snake_case is expected). Auto-fixable. |
+| `options` | per-field | Invalid options for well-known tags (e.g., `json:"foo,omitemtpy"` → suggests `omitempty`). Extensible via `KnownOptions`. Auto-fixable. |
 | `unexported` | per-field | Encoding tags on unexported fields (silently ignored at runtime) |
-| `unknownkeys` | per-field | Tag keys not in a configured known set (e.g., `josn` → suggests `json`) |
+| `unknownkeys` | per-field | Tag keys not in a configured known set (e.g., `josn` → suggests `json`). Auto-fixable when a close match exists. |
 | `completeness` | per-struct | Missing tags when other fields in the struct have them |
 | `duplicates` | per-struct | Duplicate tag values within a struct, including via embedding |
 | `shadow` | per-struct | Outer field tags that silently override embedded field tags |
@@ -186,7 +186,10 @@ a := tagaudit.New(&tagaudit.Config{
 `tagaudit` provides a `go/analysis.Analyzer` for integration with golangci-lint and similar tools:
 
 ```go
-import "github.com/emm5317/tagaudit"
+import (
+    "github.com/emm5317/tagaudit"
+    "github.com/emm5317/tagaudit/rules"
+)
 
 // Use with golangci-lint or multichecker
 analyzer := tagaudit.NewAnalyzer(rules.DefaultConfig())
